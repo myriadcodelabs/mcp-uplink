@@ -9,7 +9,7 @@ Requires Node.js 22 or newer.
 Install the published CLI:
 
 ```sh
-npm install -g @myriadcode/mcp-uplink
+npm install -g @myriadcodelabs/mcp-uplink
 mcp-uplink
 ```
 

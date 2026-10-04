@@ -1,5 +1,5 @@
 {
-  "name": "@myriadcode/mcp-uplink",
+  "name": "@myriadcodelabs/mcp-uplink",
   "version": "1.0.0",
   "description": "Run local MCP servers behind one aggregate endpoint and optionally uplink them to a compatible remote registry.",
   "license": "Apache-2.0",
