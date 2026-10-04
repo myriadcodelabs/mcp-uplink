@@ -1,0 +1,1 @@
+{ "compilerOptions": { "target": "ES2023", "module": "ESNext", "moduleResolution": "Bundler", "lib": ["DOM", "ES2023"], "strict": true, "noEmit": true, "skipLibCheck": true, "types": [] }, "include": ["ui/**/*.ts"] }

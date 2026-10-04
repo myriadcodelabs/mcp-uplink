@@ -1,0 +1,35 @@
+{
+  "name": "@myriadcode/browser-mcp-adapter",
+  "version": "1.0.0",
+  "private": false,
+  "type": "module",
+  "bin": {
+    "myriad-adapter": "./dist/main.js"
+  },
+  "files": [
+    "dist",
+    "ui-dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json && tsc -p tsconfig.ui.json && vite build --config vite.config.ts",
+    "start": "node dist/main.js",
+    "dev": "npm run build && npm start",
+    "test": "vitest run --config vitest.config.mts",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.0.8"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
