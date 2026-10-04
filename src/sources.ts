@@ -20,7 +20,7 @@ export class SourceManager {
       : new StreamableHTTPClientTransport(new URL(source.url));
     // Drain child stderr without writing server output or credentials to adapter logs.
     if (transport instanceof StdioClientTransport) transport.stderr?.on('data', () => {});
-    const client = new Client({ name: 'myriad-adapter', version: '1.0.0' });
+    const client = new Client({ name: 'mcp-uplink', version: '1.0.0' });
     try {
       await client.connect(transport);
       const tools: Tool[] = [];

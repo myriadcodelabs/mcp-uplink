@@ -9,9 +9,9 @@ export interface BrowserMcpClient {
 }
 export interface AdapterLogger { info(message: string): void; warn(message: string): void; error(message: string, error?: unknown): void }
 export const consoleAdapterLogger: AdapterLogger = {
-  info: message => console.info(`[myriad-adapter] ${message}`),
-  warn: message => console.warn(`[myriad-adapter] ${message}`),
-  error: (message, error) => console.error(`[myriad-adapter] ${message}${error === undefined ? '' : `: ${error instanceof Error ? error.message : 'Unknown error'}`}`),
+  info: message => console.info(`[mcp-uplink] ${message}`),
+  warn: message => console.warn(`[mcp-uplink] ${message}`),
+  error: (message, error) => console.error(`[mcp-uplink] ${message}${error === undefined ? '' : `: ${error instanceof Error ? error.message : 'Unknown error'}`}`),
 };
 
 export class RegistryBridge {

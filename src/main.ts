@@ -108,9 +108,9 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     json(response, 404, { error: 'Not found' });
   } catch (error) { consoleAdapterLogger.error('Request failed', error); json(response, 400, { error: error instanceof Error ? error.message : 'Request failed' }); }
 }
-const port = Number(process.env['MYRIAD_ADAPTER_PORT'] ?? '8787');
+const port = Number(process.env['MCP_UPLINK_PORT'] ?? process.env['MYRIAD_ADAPTER_PORT'] ?? '8787');
 const server = createServer((request, response) => { void route(request, response); });
-server.listen(port, '127.0.0.1', () => consoleAdapterLogger.info(`Local adapter ready at http://127.0.0.1:${port}`));
+server.listen(port, '127.0.0.1', () => consoleAdapterLogger.info(`MCP Uplink ready at http://127.0.0.1:${port}`));
 await Promise.all(config.sources.map(source => manager.start(source.id).catch(error => consoleAdapterLogger.error(`Could not start ${source.name}`, error))));
 await reconnect();
 for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => { void (async () => { server.close(); await bridge?.stop(); await manager.stopAll(); })(); });

@@ -7,15 +7,31 @@ export type SourceConfig = { id: string; name: string; description?: string; tra
 export type UplinkConfig = { url: string; token: string; enabled: boolean };
 export type AdapterConfig = { deviceId: string; sources: SourceConfig[]; uplink: UplinkConfig };
 
+const defaultConfigPath = join(homedir(), '.config', 'mcp-uplink', 'config.json');
+const legacyConfigPath = join(homedir(), '.config', 'myriad-adapter', 'config.json');
+
+function parseConfig(raw: string): AdapterConfig {
+  const data = JSON.parse(raw) as AdapterConfig;
+  if (!Array.isArray(data.sources) || !data.uplink || typeof data.deviceId !== 'string') throw new Error('Invalid config file');
+  return data;
+}
+
 export class ConfigStore {
-  constructor(readonly path = process.env['MYRIAD_ADAPTER_CONFIG'] ?? join(homedir(), '.config', 'myriad-adapter', 'config.json')) {}
+  constructor(readonly path = process.env['MCP_UPLINK_CONFIG'] ?? process.env['MYRIAD_ADAPTER_CONFIG'] ?? defaultConfigPath) {}
   async load(): Promise<AdapterConfig> {
     try {
-      const data = JSON.parse(await readFile(this.path, 'utf8')) as AdapterConfig;
-      if (!Array.isArray(data.sources) || !data.uplink || typeof data.deviceId !== 'string') throw new Error('Invalid config file');
-      return data;
+      return parseConfig(await readFile(this.path, 'utf8'));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      if (this.path === defaultConfigPath) {
+        try {
+          const legacy = parseConfig(await readFile(legacyConfigPath, 'utf8'));
+          await this.save(legacy);
+          return legacy;
+        } catch (legacyError) {
+          if ((legacyError as NodeJS.ErrnoException).code !== 'ENOENT') throw legacyError;
+        }
+      }
       const data: AdapterConfig = { deviceId: randomUUID(), sources: [], uplink: { url: 'wss://api-mcp.myriadcode.com/adapter', token: '', enabled: false } };
       await this.save(data);
       return data;

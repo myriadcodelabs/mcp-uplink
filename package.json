@@ -1,10 +1,10 @@
 {
-  "name": "@myriadcode/browser-mcp-adapter",
+  "name": "@myriadcode/mcp-uplink",
   "version": "1.0.0",
   "private": false,
   "type": "module",
   "bin": {
-    "myriad-adapter": "./dist/main.js"
+    "mcp-uplink": "./dist/main.js"
   },
   "files": [
     "dist",

@@ -5,7 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { catalog, type SourceManager } from './sources.js';
 
 export async function handleAggregate(request: IncomingMessage, response: ServerResponse, manager: SourceManager): Promise<void> {
-  const server = new Server({ name: 'myriad-adapter', version: '1.0.0' }, { capabilities: { tools: {} } });
+  const server = new Server({ name: 'mcp-uplink', version: '1.0.0' }, { capabilities: { tools: {} } });
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: catalog(manager).map(entry => ({ ...entry.tool, name: entry.name })) }));
   server.setRequestHandler(CallToolRequestSchema, async ({ params }) => {
     const entry = catalog(manager).find(item => item.name === params.name);
