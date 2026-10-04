@@ -6,6 +6,15 @@ General-purpose local MCP manager with a loopback aggregate MCP endpoint and opt
 
 Requires Node.js 22 or newer.
 
+Install the published CLI:
+
+```sh
+npm install -g @myriadcode/mcp-uplink
+mcp-uplink
+```
+
+Or run from source:
+
 ```sh
 npm ci
 npm run build

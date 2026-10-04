@@ -1,6 +1,16 @@
 {
   "name": "@myriadcode/mcp-uplink",
   "version": "1.0.0",
+  "description": "Run local MCP servers behind one aggregate endpoint and optionally uplink them to a compatible remote registry.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/myriadcodelabs/mcp-uplink.git"
+  },
+  "homepage": "https://github.com/myriadcodelabs/mcp-uplink#readme",
+  "bugs": {
+    "url": "https://github.com/myriadcodelabs/mcp-uplink/issues"
+  },
   "private": false,
   "type": "module",
   "bin": {
@@ -28,6 +38,9 @@
     "typescript": "~6.0.3",
     "vite": "^8.0.0",
     "vitest": "^4.0.8"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=22"
