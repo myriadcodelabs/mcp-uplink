@@ -91,6 +91,112 @@ describe('RegistryBridge', () => {
     await pong;
   });
 
+  it('sends native heartbeat pings and accepts native pongs', async () => {
+    const client = new FakeClient([]);
+    const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    const port = (server.address() as AddressInfo).port;
+    const logger = new RecordingLogger();
+    const bridge = new RegistryBridge(client, `ws://127.0.0.1:${port}`, 'tunnel-secret', 10, logger, () => ({}), 10, 50);
+    closers.push(async () => {
+      await bridge.stop();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    });
+
+    const ping = new Promise<void>((resolve) => {
+      server.once('connection', (socket) => socket.once('ping', () => resolve()));
+    });
+
+    void bridge.run();
+
+    await ping;
+    expect(logger.infoMessages).toContain('Remote connected: 127.0.0.1:' + port);
+  });
+
+  it('terminates a connection when adapter heartbeat pong is missed', async () => {
+    const client = new FakeClient([]);
+    const server = new WebSocketServer({ host: '127.0.0.1', port: 0, autoPong: false });
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    const port = (server.address() as AddressInfo).port;
+    const logger = new RecordingLogger();
+    const bridge = new RegistryBridge(client, `ws://127.0.0.1:${port}`, 'tunnel-secret', 1_000, logger, () => ({}), 10, 25);
+    closers.push(async () => {
+      await bridge.stop();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    });
+
+    const disconnected = new Promise<void>((resolve) => {
+      logger.onWarn = (message) => {
+        if (message === 'Remote heartbeat timed out') resolve();
+      };
+    });
+
+    void bridge.run();
+
+    await disconnected;
+    expect(logger.warnMessages).toContain('Remote heartbeat timed out');
+  });
+
+  it('reconnects and re-registers after heartbeat failure', async () => {
+    const client = new FakeClient([]);
+    const server = new WebSocketServer({ host: '127.0.0.1', port: 0, autoPong: false });
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    const port = (server.address() as AddressInfo).port;
+    const logger = new RecordingLogger();
+    const bridge = new RegistryBridge(client, `ws://127.0.0.1:${port}`, 'tunnel-secret', 5, logger, () => ({}), 10, 25);
+    closers.push(async () => {
+      await bridge.stop();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    });
+
+    let connectionCount = 0;
+    const registeredAgain = new Promise<void>((resolve) => {
+      server.on('connection', (socket) => {
+        connectionCount += 1;
+        const connectionNumber = connectionCount;
+        socket.on('message', (data) => {
+          const frame = JSON.parse(data.toString()) as { type?: string };
+          if (connectionNumber >= 2 && frame.type === 'register') resolve();
+        });
+      });
+    });
+
+    void bridge.run();
+
+    await registeredAgain;
+    expect(connectionCount).toBeGreaterThanOrEqual(2);
+    expect(logger.warnMessages).toContain('Remote heartbeat timed out');
+  });
+
+  it('does not reconnect after an intentional stop', async () => {
+    const client = new FakeClient([]);
+    const server = new WebSocketServer({ host: '127.0.0.1', port: 0, autoPong: false });
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    const port = (server.address() as AddressInfo).port;
+    const logger = new RecordingLogger();
+    const bridge = new RegistryBridge(client, `ws://127.0.0.1:${port}`, 'tunnel-secret', 5, logger, () => ({}), 10, 25);
+    closers.push(async () => {
+      await bridge.stop();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    });
+
+    let connectionCount = 0;
+    const connected = new Promise<void>((resolve) => {
+      server.on('connection', () => {
+        connectionCount += 1;
+        resolve();
+      });
+    });
+
+    const run = bridge.run();
+    await connected;
+    await bridge.stop();
+    await run;
+    await new Promise(resolve => setTimeout(resolve, 60));
+
+    expect(connectionCount).toBe(1);
+  });
+
   it('logs a rejected WebSocket handshake without exposing URL credentials', async () => {
     const client = new FakeClient([]);
     const server = new WebSocketServer({
@@ -136,6 +242,7 @@ class RecordingLogger implements AdapterLogger {
   readonly warnMessages: string[] = [];
   readonly errorMessages: string[] = [];
   onError?: (message: string) => void;
+  onWarn?: (message: string) => void;
 
   info(message: string): void {
     this.infoMessages.push(message);
@@ -143,6 +250,7 @@ class RecordingLogger implements AdapterLogger {
 
   warn(message: string): void {
     this.warnMessages.push(message);
+    this.onWarn?.(message);
   }
 
   error(message: string): void {

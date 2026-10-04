@@ -19,7 +19,16 @@ export class RegistryBridge {
   private socket?: WebSocket;
   private wake?: () => void;
   private readonly safeHost: string;
-  constructor(private readonly client: BrowserMcpClient, private readonly url: string, private readonly token: string, private readonly retryDelayMs = 1000, private readonly logger: AdapterLogger = consoleAdapterLogger, private readonly inventory: () => object = () => ({})) {
+  constructor(
+    private readonly client: BrowserMcpClient,
+    private readonly url: string,
+    private readonly token: string,
+    private readonly retryDelayMs = 1000,
+    private readonly logger: AdapterLogger = consoleAdapterLogger,
+    private readonly inventory: () => object = () => ({}),
+    private readonly heartbeatIntervalMs = 15_000,
+    private readonly heartbeatTimeoutMs = 45_000,
+  ) {
     try { this.safeHost = new URL(url).host; } catch { this.safeHost = '<invalid URL>'; }
   }
   async run(): Promise<void> {
@@ -39,18 +48,50 @@ export class RegistryBridge {
     return new Promise(resolve => {
       let socket: WebSocket;
       try { socket = new WebSocket(this.url, { headers: { Authorization: `Bearer ${this.token}` } }); }
-      catch (error) { this.logger.error('Invalid remote WebSocket configuration'); resolve(); return; }
+      catch { this.logger.error('Invalid remote WebSocket configuration'); resolve(); return; }
       this.socket = socket;
       let done = false;
-      const finish = () => { if (!done) { done = true; resolve(); } };
+      let heartbeatTimer: NodeJS.Timeout | undefined;
+      let lastPongAt = Date.now();
+      const finish = () => {
+        if (done) return;
+        done = true;
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+        if (this.socket === socket) this.socket = undefined;
+        resolve();
+      };
+      const terminateStaleConnection = () => {
+        this.logger.warn('Remote heartbeat timed out');
+        socket.terminate();
+        finish();
+      };
       socket.once('open', () => {
+        lastPongAt = Date.now();
+        heartbeatTimer = setInterval(() => {
+          if (socket.readyState !== WebSocket.OPEN) return;
+          if (Date.now() - lastPongAt >= this.heartbeatTimeoutMs) {
+            terminateStaleConnection();
+            return;
+          }
+          socket.ping();
+        }, this.heartbeatIntervalMs);
         this.logger.info(`Remote connected: ${this.safeHost}`);
         void this.sync().catch(error => this.logger.error('Tool registration failed', error));
       });
+      socket.on('pong', () => { lastPongAt = Date.now(); });
       socket.on('message', data => { void this.handle(socket, data.toString()); });
       socket.once('close', (code) => { this.logger.warn(`Remote disconnected (${code})`); finish(); });
-      socket.once('error', error => { this.logger.error('Remote WebSocket error'); finish(); });
-      socket.once('unexpected-response', (_request, response) => { this.logger.error(`Remote WebSocket handshake rejected with HTTP ${response.statusCode ?? 'unknown'}`); response.resume(); socket.terminate(); finish(); });
+      socket.once('error', () => {
+        this.logger.error('Remote WebSocket error');
+        socket.terminate();
+        finish();
+      });
+      socket.once('unexpected-response', (_request, response) => {
+        this.logger.error(`Remote WebSocket handshake rejected with HTTP ${response.statusCode ?? 'unknown'}`);
+        response.resume();
+        socket.terminate();
+        finish();
+      });
     });
   }
   private async handle(socket: WebSocket, payload: string): Promise<void> {
