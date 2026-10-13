@@ -1,6 +1,6 @@
 {
   "name": "@myriadcodelabs/mcp-uplink",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Run local MCP servers behind one aggregate endpoint and optionally uplink them to a compatible remote registry.",
   "license": "Apache-2.0",
   "repository": {
