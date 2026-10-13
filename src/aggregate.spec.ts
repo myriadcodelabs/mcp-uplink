@@ -39,6 +39,24 @@ it('discovers HTTP tools and proxies aggregate calls end to end', async () => {
   await client.close(); await manager.stopAll();
 });
 
+it('sends configured headers to authenticated HTTP MCPs', async () => {
+  const upstream = await listen(createServer((request, response) => {
+    if (request.headers.authorization !== 'Bearer secret-token') { response.writeHead(401); response.end(); return; }
+    const server = new McpServer({ name: 'authenticated-upstream', version: '1' }, { capabilities: { tools: {} } });
+    server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: [{ name: 'secured', inputSchema: { type: 'object' } }] }));
+    server.setRequestHandler(CallToolRequestSchema, async () => ({ content: [{ type: 'text', text: 'authorized' }] }));
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+    response.once('close', () => { void server.close(); });
+    void server.connect(transport).then(() => transport.handleRequest(request, response));
+  }));
+  const source: SourceConfig = { id: 'secured-id', name: 'Secured', transport: 'http', url: upstream, headers: { Authorization: 'Bearer secret-token' } };
+  const manager = new SourceManager(() => [source], () => {});
+  await manager.start(source.id);
+  expect(catalog(manager).map(entry => entry.name)).toEqual(['secured']);
+  expect((await manager.call(source.id, 'secured', {})).content).toEqual([{ type: 'text', text: 'authorized' }]);
+  await manager.stopAll();
+});
+
 it('starts and stops a STDIO MCP with configured environment', async () => {
   const source: SourceConfig = { id: 'stdio-id', name: 'STDIO test', transport: 'stdio', command: process.execPath, args: [fileURLToPath(new URL('../test-fixtures/stdio-server.mjs', import.meta.url))], env: { TEST_VALUE: 'from env' } };
   const manager = new SourceManager(() => [source], () => {});

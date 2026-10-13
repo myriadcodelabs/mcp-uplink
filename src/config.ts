@@ -3,7 +3,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 
-export type SourceConfig = { id: string; name: string; description?: string; transport: 'stdio'; command: string; args: string[]; env: Record<string, string> } | { id: string; name: string; description?: string; transport: 'http'; url: string };
+export type SourceConfig = { id: string; name: string; description?: string; transport: 'stdio'; command: string; args: string[]; env: Record<string, string> } | { id: string; name: string; description?: string; transport: 'http'; url: string; headers?: Record<string, string> };
 export type UplinkConfig = { url: string; token: string; enabled: boolean };
 export type AdapterConfig = { deviceId: string; sources: SourceConfig[]; uplink: UplinkConfig };
 
@@ -64,7 +64,9 @@ export function parseSource(value: unknown, id: string = randomUUID()): SourceCo
     let parsed: URL;
     try { parsed = new URL(url); } catch { throw new Error('Valid HTTP MCP URL is required'); }
     if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('HTTP MCP URL must use http or https');
-    return { id, name, description, transport: 'http', url };
+    const headers = input.headers ?? {};
+    if (typeof headers !== 'object' || headers === null || Array.isArray(headers) || !Object.entries(headers).every(([key, value]) => /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(key) && typeof value === 'string' && !/[\r\n\0]/.test(value))) throw new Error('HTTP headers must be valid string pairs');
+    return { id, name, description, transport: 'http', url, headers: headers as Record<string, string> };
   }
   throw new Error('Transport must be stdio or http');
 }

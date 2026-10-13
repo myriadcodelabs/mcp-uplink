@@ -17,7 +17,7 @@ export class SourceManager {
     if (this.active.has(id)) return;
     const transport = source.transport === 'stdio'
       ? new StdioClientTransport({ command: source.command, args: source.args, env: { ...process.env, ...source.env } as Record<string, string>, stderr: 'pipe' })
-      : new StreamableHTTPClientTransport(new URL(source.url));
+      : new StreamableHTTPClientTransport(new URL(source.url), { requestInit: { headers: source.headers ?? {} } });
     // Drain child stderr without writing server output or credentials to adapter logs.
     if (transport instanceof StdioClientTransport) transport.stderr?.on('data', () => {});
     const client = new Client({ name: 'mcp-uplink', version: '1.0.0' });
